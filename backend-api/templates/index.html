@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prédiction Prix de l'Or</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 10px; }
+        .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 30px; }
+        .form-group { margin: 25px 0; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #34495e; }
+        input[type="date"] { 
+            width: 100%; 
+            padding: 12px; 
+            font-size: 16px; 
+            border: 2px solid #ddd; 
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+        input[type="date"]:focus { 
+            outline: none; 
+            border-color: #3498db; 
+        }
+        button { 
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white; 
+            border: none; 
+            padding: 15px; 
+            font-size: 18px; 
+            width: 100%; 
+            cursor: pointer; 
+            border-radius: 8px;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        .result { 
+            margin-top: 30px; 
+            padding: 25px; 
+            background: linear-gradient(135deg, #e8f4fc, #d1ecf1); 
+            border-radius: 12px;
+            border-left: 5px solid #3498db;
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .price { 
+            font-size: 3em; 
+            color: #27ae60; 
+            text-align: center; 
+            font-weight: bold;
+            margin: 15px 0;
+        }
+        .error { 
+            background: linear-gradient(135deg, #fadbd8, #f5c6cb); 
+            color: #721c24; 
+            padding: 20px; 
+            border-radius: 10px; 
+            border-left: 5px solid #e74c3c;
+        }
+        .details { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin-top: 20px;
+            border: 1px solid #eee;
+        }
+        .details p { margin: 10px 0; }
+        .details strong { color: #2c3e50; }
+        
+        /* Barre d'intervalle */
+        .interval-bar {
+            height: 40px;
+            background: #ecf0f1;
+            border-radius: 20px;
+            margin: 25px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .interval-min, .interval-max {
+            position: absolute;
+            background: #e74c3c;
+            color: white;
+            padding: 6px 10px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: bold;
+            top: -30px;
+            min-width: 60px;
+            text-align: center;
+        }
+        .interval-range {
+            position: absolute;
+            background: linear-gradient(90deg, #2ecc71, #27ae60);
+            color: white;
+            height: 100%;
+            border-radius: 20px;
+            text-align: center;
+            padding-top: 10px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .interval-max {
+            background: #f39c12;
+            color: #2c3e50;
+        }
+        .interval-label {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 Prédiction du Prix de l'Or</h1>
+        <p class="subtitle">Prédisez le prix futur de l'or en USD/gramme</p>
+        
+        <p style="text-align: center; background: #f8f9fa; padding: 10px; border-radius: 8px;">
+            <strong>Dernière donnée disponible :</strong> {{ last_date }}
+            {% if last_price %}
+            | <strong>Prix actuel :</strong> {{ last_price }}$
+            {% endif %}
+        </p>
+        
+        <form action="/predict" method="post">
+            <div class="form-group">
+                <label>📅 Date de prédiction :</label>
+                <input type="date" id="dateInput" name="date" required 
+                       value="{{ date_entered if date_entered else '' }}">
+            </div>
+            <button type="submit">🔮 Prédire le Prix</button>
+        </form>
+        
+        {% if error %}
+        <div class="error">
+            <h3 style="margin-top: 0;">❌ Erreur</h3>
+            <p>{{ error }}</p>
+        </div>
+        {% endif %}
+        
+        {% if prediction %}
+        <div class="result">
+            <h2 style="margin-top: 0; color: #27ae60;"> Prédiction réussie !</h2>
+            
+            <!-- PRIX PRÉDIT -->
+            <div class="price">{{ price }}$</div>
+            
+            <!-- BARRE VISUELLE DE L'INTERVALLE -->
+            <div class="interval-bar">
+                <div class="interval-min" style="left: 5%;">{{ lower }}$</div>
+                <div class="interval-range" style="width: 70%; left: 15%;">
+                    {{ ((lower|float + upper|float) / 2)|round(2) }}$
+                </div>
+                <div class="interval-max" style="left: 80%;">{{ upper }}$</div>
+            </div>
+            <div class="interval-label">Intervalle de confiance à 95%</div>
+            
+            <!-- DÉTAILS -->
+            <div class="details">
+                <p><strong>Date :</strong> {{ date }}</p>
+                <p>⏱ <strong>Horizon :</strong> {{ days_ahead }} jours ({{ (days_ahead/365)|round(1) }} ans)</p>
+                <p> <strong>Intervalle :</strong> {{ lower }}$ - {{ upper }}$</p>
+                <p> <strong>Modèle :</strong> {{ model }}</p>
+                
+                <!-- CALCUL DE VARIATION -->
+                {% if last_price %}
+                <p>📈 <strong>Variation :</strong> 
+                    {% set variation = ((price|float - last_price|float) / last_price|float * 100) %}
+                    {% if variation > 0 %}
+                    +{{ variation|round(1) }}% vs aujourd'hui
+                    {% else %}
+                    {{ variation|round(1) }}% vs aujourd'hui
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        // Configuration des dates
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateInput = document.getElementById('dateInput');
+            const today = new Date();
+            
+            // Date minimum = demain
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const minDate = tomorrow.toISOString().split('T')[0];
+            dateInput.min = minDate;
+            
+            // Date par défaut = 1 an après
+            const nextYear = new Date(today);
+            nextYear.setFullYear(nextYear.getFullYear() + 1);
+            const defaultDate = nextYear.toISOString().split('T')[0];
+            
+            // Ne pas écraser si l'utilisateur a déjà entré une date
+            if (!dateInput.value) {
+                dateInput.value = defaultDate;
+            }
+        });
+    </script>
+</body>
+</html>
